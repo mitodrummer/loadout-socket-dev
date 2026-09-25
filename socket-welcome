@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Prints the command list for the Socket repo in the current directory. The
+# socket-dev layout runs it in the left pane; run it again any time with
+# `bash ~/.local/bin/socket-welcome`.
+#
+# The repo is read from $SOCKET_REPO, which each repo's minimal.toml sets in
+# [session.vars]. Without it (a hand-written minimal.toml, or a shell outside
+# a session) the package.json name decides.
+set -euo pipefail
+
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  bold=$'\e[1m' dim=$'\e[2m' cyan=$'\e[36m' yellow=$'\e[33m' reset=$'\e[0m'
+else
+  bold='' dim='' cyan='' yellow='' reset=''
+fi
+
+detect_repo() {
+  if [ -n "${SOCKET_REPO:-}" ]; then
+    printf '%s\n' "$SOCKET_REPO"
+    return
+  fi
+  local name=''
+  if [ -f package.json ]; then
+    name="$(sed -n 's/^  "name": "\(.*\)",$/\1/p' package.json | head -n 1)"
+  fi
+  case "$name" in
+    socket) echo socket-cli ;;
+    @socketsecurity/mcp) echo socket-mcp ;;
+    *) echo unknown ;;
+  esac
+}
+
+header() {
+  local title="$1"
+  local node_v pnpm_v
+  node_v="$(node --version 2>/dev/null || echo 'not found')"
+  # The first pnpm call in a fresh session downloads the repo's pinned pnpm
+  # (see PNPM_CONFIG_PM_ON_FAIL in minimal.toml); cap it so an offline
+  # session still gets its welcome.
+  pnpm_v="$(timeout 60 pnpm --version 2>/dev/null || echo 'not found')"
+  printf '\n%s%s%s\n' "$bold" "$title" "$reset"
+  printf '%snode %s  pnpm %s  cwd %s%s\n\n' "$dim" "$node_v" "$pnpm_v" "$PWD" "$reset"
+  printf '  %s%-34s %s%s\n' "$bold" 'In this shell' 'Fresh sandbox (installs first)' "$reset"
+}
+
+row() {
+  printf '  %s%-34s%s %s\n' "$cyan" "$1" "$reset" "$2"
+}
+
+note() {
+  printf '  %s%s%s\n' "$yellow" "$1" "$reset"
+}
+
+welcome_socket_cli() {
+  header 'Socket CLI  (SocketDev/socket-cli)'
+  row 'pnpm install && pnpm run prepare' 'min task run install'
+  row 'pnpm run build' 'min task run build'
+  row 'pnpm run build:cli' 'min task run build-cli'
+  row 'pnpm run build:watch' '-'
+  row 'pnpm run s <args>' 'min task run cli --cmd "<args>"'
+  row 'pnpm test --all' 'min task run test'
+  row 'pnpm test <file>' 'min task run test --target <file>'
+  row 'pnpm run test:unit --all' 'min task run test-unit'
+  row 'pnpm run type' 'min task run typecheck'
+  row 'pnpm run lint --all' 'min task run lint'
+  row 'pnpm run check --all' 'min task run check'
+  row 'pnpm run fix --all' 'min task run fix'
+  row 'pnpm run preflight' 'min task run preflight'
+  echo
+  printf '  %sDebug logging:%s SOCKET_CLI_DEBUG=1 pnpm run s <command>\n' "$dim" "$reset"
+  if [ ! -d node_modules ]; then
+    note 'node_modules is missing: run pnpm install && pnpm run prepare first.'
+  elif [ ! -f scripts/fleet/check.mts ]; then
+    note 'Fleet scripts are not hydrated yet: run pnpm run prepare.'
+  fi
+  if [ -z "${SOCKET_CLI_API_TOKEN:-}" ]; then
+    note 'SOCKET_CLI_API_TOKEN is unset: export it on the host to call the API.'
+  fi
+}
+
+welcome_socket_mcp() {
+  header 'Socket MCP server  (SocketDev/socket-mcp)'
+  row 'pnpm install' 'min task run install'
+  row 'pnpm run build' 'min task run build'
+  row 'pnpm test --all' 'min task run test'
+  row 'pnpm test <file>' 'min task run test --target <file>'
+  row 'pnpm run test:e2e' 'min task run test-e2e'
+  row 'pnpm run type' 'min task run typecheck'
+  row 'pnpm run lint --all' 'min task run lint'
+  row 'pnpm run check --all' 'min task run check'
+  row 'pnpm run fix --all' 'min task run fix'
+  row 'pnpm run server-stdio' '-'
+  row 'pnpm run server-http' 'min task run server-http'
+  row 'pnpm run debug-sdk' 'min task run debug-sdk'
+  echo
+  printf '  %sAdd :debug to a server script for request tracing (server-http:debug).%s\n' \
+    "$dim" "$reset"
+  printf '  %sPoint Claude Code (right pane) at the local server:%s\n' "$dim" "$reset"
+  # shellcheck disable=SC2016 # prints the command for the reader to run; $SOCKET_API_TOKEN stays literal
+  printf '    pnpm run build && claude mcp add socket-local -e SOCKET_API_TOKEN="$SOCKET_API_TOKEN" -- node %s/dist/index.cjs\n' \
+    "$PWD"
+  printf '    or, with server-http running: claude mcp add --transport http socket-local-http http://localhost:3000\n'
+  if [ ! -d node_modules ]; then
+    note 'node_modules is missing: run pnpm install first.'
+  fi
+  if [ -z "${SOCKET_API_TOKEN:-}" ]; then
+    note 'SOCKET_API_TOKEN is unset: the servers, debug clients and test:e2e need it.'
+  fi
+}
+
+case "$(detect_repo)" in
+  socket-cli) welcome_socket_cli ;;
+  socket-mcp) welcome_socket_mcp ;;
+  *)
+    printf '\n%ssocket-dev%s: %s is not socket-cli or socket-mcp.\n' "$bold" "$reset" "$PWD"
+    printf 'Set SOCKET_REPO in [session.vars] or run from a Socket repo root.\n'
+    ;;
+esac
+echo

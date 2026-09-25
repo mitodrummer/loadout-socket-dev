@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Attach-time entry point for the socket-dev loadout. The loadout's
+# PROMPT_COMMAND runs it once, at the first prompt of `min session attach`,
+# from the repo root. It opens a two-pane zellij layout: the left pane is a
+# shell that prints the repo's command list, the right pane runs Claude Code.
+#
+# Everything here soft-fails: if zellij is missing or the layout cannot load,
+# the developer keeps the plain attach shell rather than losing the session.
+set -euo pipefail
+
+bin_dir="$HOME/.local/bin"
+layout="${XDG_CONFIG_HOME:-$HOME/.config}/zellij/layouts/socket-dev.kdl"
+
+if ! command -v zellij >/dev/null 2>&1 || [ ! -f "$layout" ]; then
+  echo "socket-dev: zellij or its layout is missing; staying in this shell." >&2
+  bash "$bin_dir/socket-welcome" || true
+  exit 0
+fi
+
+# Claude Code shows a first-run onboarding flow when ~/.claude.json is
+# absent. A fresh session home never has one, so seed the minimum. Login
+# still happens normally when no credential was inherited.
+if [ ! -f "$HOME/.claude.json" ]; then
+  printf '%s\n' '{' '  "hasCompletedOnboarding": true' '}' >"$HOME/.claude.json"
+fi
+
+# zellij opens a setup wizard whenever its config file is absent, and it
+# lands on top of the layout. Generate the stock config instead of pinning
+# one, so it always matches the zellij version in the session.
+zj_config="${XDG_CONFIG_HOME:-$HOME/.config}/zellij/config.kdl"
+if [ ! -f "$zj_config" ]; then
+  mkdir -p "$(dirname "$zj_config")"
+  if ! zellij setup --dump-config >"$zj_config" 2>/dev/null; then
+    rm -f "$zj_config"
+  fi
+fi
+
+# `attach --create` rejoins a live layout on a second attach instead of
+# killing panes that are still in use. For a fresh layout, run
+# `zellij delete-session --force socket-dev` first.
+exec zellij --layout "$layout" attach --create socket-dev \
+  options --show-startup-tips false --show-release-notes false

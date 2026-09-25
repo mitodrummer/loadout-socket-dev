@@ -1,0 +1,106 @@
+# Minimal config for SocketDev/socket-mcp. Copy to .minimal/minimal.toml in
+# the repo root. Pairs with the socket-dev loadout (see README.md), but works
+# without it: the loadout only adds zellij, Claude Code and the welcome shell.
+
+[upstream]
+repo = "https://github.com/gominimal/pkgs"
+branch = "main"
+locked_commit = "79d15b4a2659d7826ee9e53e9e0bdd3d0cecf643"
+
+[stack]
+use = "pnpm"
+
+[defaults]
+state_key = "dev"
+
+[session]
+# node-lts is 24.x. The repo's .node-version says 26.8.1, which the catalog
+# does not carry yet; engines.node is ">=24", and install and tests were
+# checked on 24.
+packages = ["base", "node-lts", "git", "gh", "jq", "less", "ripgrep", "fd"]
+
+[session.vars]
+# Read by the socket-dev loadout's welcome script to pick the command list.
+SOCKET_REPO = "socket-mcp"
+# The catalog pnpm is 11.21; package.json requires "^11.25.0 || >=12.3.4" and
+# hard-fails an older pnpm. With this set, pnpm resolves devEngines, fetches
+# the matching release from the npm registry with integrity checks (12.5.1,
+# the version Socket's CI pins), and re-runs itself under it.
+PNPM_CONFIG_PM_ON_FAIL = "download"
+
+# Runs only once the developer allow-lists this project in their user policy
+# (hooks are arbitrary code). Otherwise run `pnpm install` by hand. The
+# install's own `prepare` lifecycle script hydrates the fleet scripts.
+[[session.lifecycle_hooks]]
+description = "Install dependencies"
+on_activate = { type = "inline", value = "pnpm install --frozen-lockfile || echo \"socket-mcp: install failed; run pnpm install by hand\" >&2", timeout = 300 }
+
+# Every task runs in a fresh sandbox, so each one installs first. Tasks are
+# the CI-shaped, from-clean check; the in-session pnpm commands are the fast
+# loop. A task never relies on node_modules from the session.
+
+[tasks.install]
+description = "Frozen-lockfile install (pnpm install)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile"
+
+[tasks.build]
+description = "Bundle the server to dist/ (pnpm run build)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run build"
+
+[tasks.test]
+description = "Run the test suite (pnpm test --all, or one file with --target)"
+packages = ["node-lts"]
+args.target = { type = "string", default = "--all", help = "a test file path, or --all" }
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm test %{target}"
+
+[tasks.test-e2e]
+description = "Live-API end-to-end tests; needs SOCKET_API_TOKEN (pnpm run test:e2e)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+env_vars.SOCKET_API_TOKEN = { inherit = true }
+bash = "pnpm install --frozen-lockfile && pnpm run test:e2e"
+
+[tasks.typecheck]
+description = "Type-check the repo (pnpm run type)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run type"
+
+[tasks.lint]
+description = "Lint the whole tree (pnpm run lint --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run lint --all"
+
+[tasks.check]
+description = "Full check suite, the CI gate (pnpm run check --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run check --all"
+
+[tasks.fix]
+description = "Auto-fix lint and formatting across the tree (pnpm run fix --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run fix --all"
+
+# Interactive so the server stays in the foreground and Ctrl-C stops it.
+[tasks.server-http]
+description = "Build and serve MCP over HTTP on :3000; needs SOCKET_API_TOKEN (pnpm run server-http)"
+interactive = true
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+env_vars.SOCKET_API_TOKEN = { inherit = true }
+bash = "pnpm install --frozen-lockfile && pnpm run server-http"
+
+[tasks.debug-sdk]
+description = "Drive the server with the SDK mock client over stdio; needs SOCKET_API_TOKEN (pnpm run debug-sdk)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+env_vars.SOCKET_API_TOKEN = { inherit = true }
+bash = "pnpm install --frozen-lockfile && pnpm run debug-sdk"

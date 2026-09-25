@@ -1,0 +1,18 @@
+// socket-dev: shell with the repo's command list on the left, Claude Code on
+// the right. Both panes start in the directory zellij was launched from (the
+// repo root). The helper scripts are run through bash with $HOME expanded by
+// `bash -c`, because KDL strings are not shell-expanded and patched files
+// arrive without an exec bit.
+layout {
+    pane split_direction="vertical" {
+        pane name="shell" size="45%" command="bash" {
+            args "-c" "bash \"$HOME/.local/bin/socket-welcome\"; exec bash -i"
+        }
+        pane name="claude" focus=true command="bash" {
+            args "-c" "exec bash \"$HOME/.local/bin/socket-claude-launch\""
+        }
+    }
+    pane size=1 borderless=true {
+        plugin location="compact-bar"
+    }
+}

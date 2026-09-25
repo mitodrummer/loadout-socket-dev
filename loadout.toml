@@ -1,0 +1,39 @@
+description = "Socket.dev: zellij with a repo-aware welcome shell (left) and Claude Code (right), for socket-cli and socket-mcp"
+
+# Personal session tooling for working on SocketDev/socket-cli and
+# SocketDev/socket-mcp. The toolchain (node, pnpm, git, ...) comes from the
+# repo's own .minimal/minimal.toml (socket-cli.minimal.toml /
+# socket-mcp.minimal.toml beside this file); this loadout only adds the
+# multiplexer, the agent, and the attach-time layout. See README.md.
+packages = ["zellij", "claude-code"]
+
+# Helper scripts land in the session as real files. They are always run as
+# `bash <path>` (see layout.kdl and PROMPT_COMMAND below), never by exec bit,
+# so they work even under `--no-hooks` and without a chmod step.
+patches = [
+    { dest = ".local/bin/socket-dev-session", source = "~/.config/minimal/loadouts/socket-dev/socket-dev-session" },
+    { dest = ".local/bin/socket-welcome", source = "~/.config/minimal/loadouts/socket-dev/socket-welcome" },
+    { dest = ".local/bin/socket-claude-launch", source = "~/.config/minimal/loadouts/socket-dev/socket-claude-launch" },
+    { dest = ".config/zellij/layouts/socket-dev.kdl", source = "~/.config/minimal/loadouts/socket-dev/layout.kdl" },
+]
+
+[vars]
+# Fires once, at the first prompt of the attach shell, and opens the zellij
+# layout. It runs there rather than in a lifecycle hook because zellij needs
+# the attach TTY. The guard stops a nested multiplexer when attaching from
+# inside zellij/tmux/screen.
+PROMPT_COMMAND = 'unset PROMPT_COMMAND; [ -z "${ZELLIJ:-}${TMUX:-}${STY:-}" ] && bash "$HOME/.local/bin/socket-dev-session"'
+TERM = { inherit = true, default = "xterm-256color" }
+COLORTERM = { inherit = true }
+
+# Credentials travel from the host environment, never from files. Each one is
+# dropped with a warning when it is unset on the host, so none is required to
+# activate. Claude Code falls back to its own /login flow without the first
+# two; the Socket tokens are what the CLI, the MCP server and the live-API
+# tests read.
+CLAUDE_CODE_OAUTH_TOKEN = { inherit = true }
+ANTHROPIC_API_KEY = { inherit = true }
+SOCKET_API_TOKEN = { inherit = true }
+SOCKET_CLI_API_TOKEN = { inherit = true }
+SOCKET_CLI_ORG_SLUG = { inherit = true }
+GH_TOKEN = { inherit = true }

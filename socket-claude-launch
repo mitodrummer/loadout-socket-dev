@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Right-pane launcher for the socket-dev loadout: run `claude update`, then
+# exec the newest Claude Code binary. Extra arguments pass through to claude.
+#
+# Why a launcher rather than plain `claude`: in-session `claude` is the
+# claude-code package's /usr/bin wrapper, which execs its pinned version.
+# `claude update` installs to ~/.local/share/claude/versions/ and links
+# ~/.local/bin/claude, but /usr/bin comes first on PATH, so the update only
+# takes effect if something execs the ~/.local/bin copy directly.
+#
+# Not `set -e`: a failed update (offline, rate limit) must still launch the
+# installed version.
+set -uo pipefail
+
+updated="$HOME/.local/bin/claude"
+
+# Update through the already-updated copy when there is one; the packaged
+# wrapper compares its own pinned version and would re-download every time.
+updater="$updated"
+[ -x "$updater" ] || updater=claude
+"$updater" update ||
+  echo "socket-claude-launch: 'claude update' failed; launching what is installed." >&2
+
+if [ -x "$updated" ]; then
+  # Match the package wrapper's launch environment (Minimal session plugin,
+  # packaged ripgrep) so the updated binary behaves like the packaged one.
+  min_plugin=/usr/share/claude/plugins/minimal
+  if [ -z "${MINIMAL_CLAUDE_NO_PLUGIN:-}" ] && [ -d "$min_plugin" ]; then
+    set -- "--plugin-dir=$min_plugin" "$@"
+  fi
+  DISABLE_AUTOUPDATER=1 USE_BUILTIN_RIPGREP=0 exec "$updated" "$@"
+fi
+
+exec claude "$@"

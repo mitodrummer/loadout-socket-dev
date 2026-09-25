@@ -1,0 +1,110 @@
+# Minimal config for SocketDev/socket-cli. Copy to .minimal/minimal.toml in
+# the repo root. Pairs with the socket-dev loadout (see README.md), but works
+# without it: the loadout only adds zellij, Claude Code and the welcome shell.
+
+[upstream]
+repo = "https://github.com/gominimal/pkgs"
+branch = "main"
+locked_commit = "79d15b4a2659d7826ee9e53e9e0bdd3d0cecf643"
+
+[stack]
+use = "pnpm"
+
+[defaults]
+state_key = "dev"
+
+[session]
+# node-lts is 24.x. The repo's .node-version says 26.8.1, which the catalog
+# does not carry yet; engines.node is ">=24", and install and tests were
+# checked on 24.
+packages = ["base", "node-lts", "git", "gh", "jq", "less", "ripgrep", "fd"]
+
+[session.vars]
+# Read by the socket-dev loadout's welcome script to pick the command list.
+SOCKET_REPO = "socket-cli"
+# The catalog pnpm is 11.21; package.json requires "^11.25.0 || >=12.3.4" and
+# hard-fails an older pnpm. With this set, pnpm resolves devEngines, fetches
+# the matching release from the npm registry with integrity checks (12.5.1,
+# the version Socket's CI pins), and re-runs itself under it.
+PNPM_CONFIG_PM_ON_FAIL = "download"
+
+# Runs only once the developer allow-lists this project in their user policy
+# (hooks are arbitrary code). Otherwise run the same two commands by hand.
+# `prepare` is explicit because pnpm-workspace.yaml sets ignoreScripts; it
+# hydrates scripts/fleet/ from the pinned wheelhouse bundle, which every
+# build, test and lint script imports.
+[[session.lifecycle_hooks]]
+description = "Install dependencies and hydrate the fleet scripts"
+on_activate = { type = "inline", value = "pnpm install --frozen-lockfile && pnpm run prepare || echo \"socket-cli: install failed; run pnpm install && pnpm run prepare by hand\" >&2", timeout = 300 }
+
+# Every task runs in a fresh sandbox, so each one installs first. Tasks are
+# the CI-shaped, from-clean check; the in-session pnpm commands are the fast
+# loop. A task never relies on node_modules from the session.
+
+[tasks.install]
+description = "Frozen-lockfile install plus fleet hydration (pnpm install && pnpm run prepare)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare"
+
+[tasks.build]
+description = "Smart build that skips unchanged outputs (pnpm run build)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run build"
+
+[tasks.build-cli]
+description = "Build the CLI package only (pnpm run build:cli)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run build:cli"
+
+[tasks.cli]
+description = "Build the CLI and run it from dist (pnpm run s <cmd>)"
+packages = ["node-lts"]
+args.cmd = { type = "string", default = "--help", help = "arguments for the socket CLI" }
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run build:cli && pnpm run s %{cmd}"
+
+[tasks.test]
+description = "Run the test suite (pnpm test --all, or one file with --target)"
+packages = ["node-lts"]
+args.target = { type = "string", default = "--all", help = "a test file path, or --all" }
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm test %{target}"
+
+[tasks.test-unit]
+description = "Run every product unit test (pnpm run test:unit --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run test:unit --all"
+
+[tasks.typecheck]
+description = "Type-check the repo (pnpm run type)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run type"
+
+[tasks.lint]
+description = "Lint the whole tree (pnpm run lint --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run lint --all"
+
+[tasks.check]
+description = "Full check suite, the CI gate (pnpm run check --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run check --all"
+
+[tasks.fix]
+description = "Auto-fix lint and formatting across the tree (pnpm run fix --all)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run fix --all"
+
+[tasks.preflight]
+description = "Collect every local gate failure in one pass (pnpm run preflight)"
+packages = ["node-lts"]
+env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
+bash = "pnpm install --frozen-lockfile && pnpm run prepare && pnpm run preflight"
