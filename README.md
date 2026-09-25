@@ -15,12 +15,15 @@ commands.
 
 ## Install
 
-Needs min 0.6 or later.
-
 ```sh
 # 1. The loadout. The directory name is the loadout's name.
 git clone https://github.com/mitodrummer/loadout-socket-dev.git \
   ~/.config/minimal/loadouts/socket-dev
+
+# On min 0.5.4 (current stable), also copy the loadout file up a level;
+# see below.
+cp ~/.config/minimal/loadouts/socket-dev/loadout.toml \
+  ~/.config/minimal/loadouts/socket-dev.toml
 
 # 2. The repo config (use socket-mcp.minimal.toml for socket-mcp).
 cd ~/src/socket-cli && mkdir -p .minimal
@@ -29,6 +32,14 @@ cp ~/.config/minimal/loadouts/socket-dev/socket-cli.minimal.toml .minimal/minima
 # 3. Activate and attach.
 min session activate --loadout socket-dev --attach
 ```
+
+**Which min.** Reading a loadout from its own directory
+(`socket-dev/loadout.toml`) is new in gominimal/minimal#1346, which is after
+the 0.5.4 release. Development builds (0.6.0-dev) read it directly. 0.5.4
+only reads a single file at `loadouts/socket-dev.toml`, which is what the copy
+above provides. The patch sources are absolute paths into this directory, so
+the copy finds every helper. Delete the copy once you're on a min that reads
+directories, so that only one `socket-dev` loadout remains.
 
 To run the install at activation, allow the repo's hook in
 `~/.config/minimal/user_policy.toml`. Otherwise activation asks, and without
