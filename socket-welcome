@@ -56,7 +56,7 @@ pair() {
 shortcuts() {
   echo
   printf '  %s%-44s %s%s\n' "$bold" 'Shell (fzf)' 'Vim (<Space> is the leader)' "$reset"
-  pair 'Ctrl-R' 'search command history' 'Ctrl-P' 'find a file (:FZF)'
+  pair 'Ctrl-R' 'search command history' '<Space>f' 'find a file (:FZF)'
   pair 'Ctrl-T' 'insert a file path' '<Space>g' 'ripgrep the repo (:Rg)'
   pair 'Alt-C' 'cd into a directory' '<Space>w' 'ripgrep the word under cursor'
   pair '** <Tab>' 'fuzzy-complete a path' '<Space>b' 'switch buffer (:Buffers)'
