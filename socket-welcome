@@ -8,11 +8,118 @@
 # a session) the package.json name decides.
 set -euo pipefail
 
+# Colour depth: 24-bit where the terminal says so, 256 colours by TERM, and
+# plain characters for NO_COLOR or when the output is not a terminal.
+depth=none
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   bold=$'\e[1m' dim=$'\e[2m' cyan=$'\e[36m' yellow=$'\e[33m' reset=$'\e[0m'
+  case "${COLORTERM:-}" in
+    truecolor | 24bit) depth=truecolor ;;
+    *) case "${TERM:-}" in *256color*) depth=256 ;; *) depth=16 ;; esac ;;
+  esac
 else
   bold='' dim='' cyan='' yellow='' reset=''
 fi
+
+# The Socket shield (socket.dev's logo-text.svg, rendered at 14x18 px, with
+# the bolt redrawn by hand so it still reads at this size): S is the shield,
+# W the bolt, . transparent. Two pixel rows share one text row via
+# half-block characters.
+SHIELD=(
+  '......SS......'
+  '...SSSSSSSS...'
+  'SSSSSSSSSSSSSS'
+  'SSSSSSSSWSSSSS'
+  'SSSSSSSWWSSSSS'
+  'SSSSSSWWWSSSSS'
+  'SSSSSWWWWSSSSS'
+  'SSSSWWWWWWWSSS'
+  'SSSSSSSWWWSSSS'
+  'SSSSSSWWWSSSSS'
+  'SSSSSSWWSSSSSS'
+  'SSSSSWWSSSSSSS'
+  '.SSSSWSSSSSSS.'
+  '.SSSSSSSSSSSS.'
+  '..SSSSSSSSSS..'
+  '...SSSSSSSS...'
+  '....SSSSSS....'
+  '......SS......'
+)
+# The shield's left-to-right gradient (#ff00aa to #8c50ff) sampled per column,
+# as 24-bit triples and nearest xterm-256 indexes.
+GRAD_TC=('251;3;173' '243;9;179' '234;14;185' '226;20;191' '218;26;198' '209;32;204'
+  '201;37;210' '193;43;216' '185;49;222' '176;55;228' '168;61;234' '160;66;240'
+  '151;72;247' '143;78;253')
+GRAD_256=(199 199 163 163 164 164 164 128 134 134 134 135 99 99)
+
+# The escape selecting pixel class $1 in column $2 as colour layer $3
+# (38 = foreground, 48 = background).
+paint() {
+  local cls="$1" x="$2" layer="$3"
+  case "$depth" in
+    truecolor)
+      [ "$cls" = W ] && printf '\e[%s;2;247;243;239m' "$layer" ||
+        printf '\e[%s;2;%sm' "$layer" "${GRAD_TC[$x]}"
+      ;;
+    256)
+      [ "$cls" = W ] && printf '\e[%s;5;231m' "$layer" ||
+        printf '\e[%s;5;%sm' "$layer" "${GRAD_256[$x]}"
+      ;;
+    16)
+      # Bright white bolt on bright magenta; 10 more selects the background.
+      local code=95
+      [ "$cls" = W ] && code=97
+      printf '\e[%sm' "$((layer == 38 ? code : code + 10))"
+      ;;
+  esac
+}
+
+# One text row of the shield, from pixel rows $1 and $1+1.
+shield_row() {
+  local top="${SHIELD[$1]}" bot="${SHIELD[$(($1 + 1))]}" x t b
+  for ((x = 0; x < ${#top}; x++)); do
+    t="${top:x:1}" b="${bot:x:1}"
+    if [ "$depth" = none ]; then
+      # Plain: the shield is solid and the bolt is cut out of it.
+      case "$t$b" in
+        SS) printf '█' ;; S.) printf '▀' ;; .S) printf '▄' ;;
+        SW) printf '▀' ;; WS) printf '▄' ;; *) printf ' ' ;;
+      esac
+    elif [ "$t$b" = .. ]; then
+      printf ' '
+    elif [ "$t" = "$b" ]; then
+      paint "$t" "$x" 38; printf '█\e[0m'
+    elif [ "$t" = . ]; then
+      paint "$b" "$x" 38; printf '▄\e[0m'
+    elif [ "$b" = . ]; then
+      paint "$t" "$x" 38; printf '▀\e[0m'
+    else
+      paint "$t" "$x" 38; paint "$b" "$x" 48; printf '▀\e[0m'
+    fi
+  done
+}
+
+# A figlet "standard" wordmark, set beside the shield on its rows 2-6. Single
+# quotes keep the backslashes literal.
+WORD=(
+  '                 _        _'
+  '  ___  ___   ___| | _____| |_'
+  ' / __|/ _ \ / __| |/ / _ \ __|'
+  ' \__ \ (_) | (__|   <  __/ |_'
+  ' |___/\___/ \___|_|\_\___|\__|.dev'
+)
+
+logo() {
+  local row
+  for ((row = 0; row < ${#SHIELD[@]} / 2; row++)); do
+    printf '  '
+    shield_row $((row * 2))
+    if ((row >= 2 && row - 2 < ${#WORD[@]})); then
+      printf '  %s%s%s' "$bold" "${WORD[row - 2]}" "$reset"
+    fi
+    printf '\n'
+  done
+}
 
 detect_repo() {
   if [ -n "${SOCKET_REPO:-}" ]; then
@@ -38,13 +145,31 @@ header() {
   # (see PNPM_CONFIG_PM_ON_FAIL in minimal.toml); cap it so an offline
   # session still gets its welcome.
   pnpm_v="$(timeout 60 pnpm --version 2>/dev/null || echo 'not found')"
-  printf '\n%s%s%s\n' "$bold" "$title" "$reset"
-  printf '%snode %s  pnpm %s  cwd %s%s\n\n' "$dim" "$node_v" "$pnpm_v" "$PWD" "$reset"
+  echo
+  logo
+  printf '\n  %s%s%s\n' "$bold" "$title" "$reset"
+  printf '  %snode %s  pnpm %s  cwd %s%s\n\n' "$dim" "$node_v" "$pnpm_v" "$PWD" "$reset"
   printf '  %s%-34s %s%s\n' "$bold" 'In this shell' 'Fresh sandbox (installs first)' "$reset"
 }
 
 row() {
   printf '  %s%-34s%s %s\n' "$cyan" "$1" "$reset" "$2"
+}
+
+pair() {
+  printf '  %s%-12s%s %-30s  %s%-12s%s %s\n' \
+    "$cyan" "$1" "$reset" "$2" "$cyan" "$3" "$reset" "$4"
+}
+
+# The key bindings bashrc (fzf) and vimrc set up, side by side.
+shortcuts() {
+  echo
+  printf '  %s%-44s %s%s\n' "$bold" 'Shell (fzf)' 'Vim (<Space> is the leader)' "$reset"
+  pair 'Ctrl-R' 'search command history' '<Space>f' 'find a file (:FZF)'
+  pair 'Ctrl-T' 'insert a file path' '<Space>g' 'ripgrep the repo (:Rg)'
+  pair 'Alt-C' 'cd into a directory' '<Space>w' 'ripgrep the word under cursor'
+  pair '** <Tab>' 'fuzzy-complete a path' '<Space>b' 'switch buffer (:Buffers)'
+  echo
 }
 
 note() {
@@ -68,6 +193,7 @@ welcome_socket_cli() {
   row 'pnpm run preflight' 'min task run preflight'
   echo
   printf '  %sDebug logging:%s SOCKET_CLI_DEBUG=1 pnpm run s <command>\n' "$dim" "$reset"
+  shortcuts
   if [ ! -d node_modules ]; then
     note 'node_modules is missing: run pnpm install && pnpm run prepare first.'
   elif [ ! -f scripts/fleet/check.mts ]; then
@@ -100,6 +226,7 @@ welcome_socket_mcp() {
   printf '    pnpm run build && claude mcp add socket-local -e SOCKET_API_TOKEN="$SOCKET_API_TOKEN" -- node %s/dist/index.cjs\n' \
     "$PWD"
   printf '    or, with server-http running: claude mcp add --transport http socket-local-http http://localhost:3000\n'
+  shortcuts
   if [ ! -d node_modules ]; then
     note 'node_modules is missing: run pnpm install first.'
   fi

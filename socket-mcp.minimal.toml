@@ -17,7 +17,10 @@ state_key = "dev"
 # node-lts is 24.x. The repo's .node-version says 26.8.1, which the catalog
 # does not carry yet; engines.node is ">=24", and install and tests were
 # checked on 24.
-packages = ["base", "node-lts", "git", "gh", "jq", "less", "ripgrep", "fd"]
+# zizmor is the one entry of .config/repo/external-tools.json the base set
+# lacks; sfw and gh-aw are not in the catalog, and the fleet setup downloads
+# them itself.
+packages = ["base", "node-lts", "git", "gh", "jq", "less", "ripgrep", "fd", "zizmor"]
 
 [session.vars]
 # Read by the socket-dev loadout's welcome script to pick the command list.
@@ -73,13 +76,13 @@ bash = "pnpm install --frozen-lockfile && pnpm run type"
 
 [tasks.lint]
 description = "Lint the whole tree (pnpm run lint --all)"
-packages = ["node-lts"]
+packages = ["node-lts", "zizmor"]
 env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
 bash = "pnpm install --frozen-lockfile && pnpm run lint --all"
 
 [tasks.check]
 description = "Full check suite, the CI gate (pnpm run check --all)"
-packages = ["node-lts"]
+packages = ["node-lts", "zizmor"]
 env_vars.PNPM_CONFIG_PM_ON_FAIL = "download"
 bash = "pnpm install --frozen-lockfile && pnpm run check --all"
 

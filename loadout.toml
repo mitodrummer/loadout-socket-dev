@@ -3,9 +3,10 @@ description = "Socket.dev: zellij with a repo-aware welcome shell (left) and Cla
 # Personal session tooling for working on SocketDev/socket-cli and
 # SocketDev/socket-mcp. The toolchain (node, pnpm, git, ...) comes from the
 # repo's own .minimal/minimal.toml (socket-cli.minimal.toml /
-# socket-mcp.minimal.toml beside this file); this loadout only adds the
-# multiplexer, the agent, and the attach-time layout. See README.md.
-packages = ["zellij", "claude-code"]
+# socket-mcp.minimal.toml beside this file); this loadout adds the
+# multiplexer, the agent, the editor and the attach-time layout. See README.md.
+# fd and ripgrep, which fzf and the vimrc's :Rg use, come from the repo config.
+packages = ["zellij", "claude-code", "vim", "fzf", "bat"]
 
 # Helper scripts land in the session as real files. They are always run as
 # `bash <path>` (see layout.kdl and PROMPT_COMMAND below), never by exec bit,
@@ -15,6 +16,9 @@ patches = [
     { dest = ".local/bin/socket-welcome", source = "~/.config/minimal/loadouts/socket-dev/socket-welcome" },
     { dest = ".local/bin/socket-claude-launch", source = "~/.config/minimal/loadouts/socket-dev/socket-claude-launch" },
     { dest = ".config/zellij/layouts/socket-dev.kdl", source = "~/.config/minimal/loadouts/socket-dev/layout.kdl" },
+    { dest = ".config/socket-dev/bashrc", source = "~/.config/minimal/loadouts/socket-dev/bashrc" },
+    { dest = ".vimrc", source = "~/.config/minimal/loadouts/socket-dev/vimrc" },
+    { dest = ".vim/plugin/fzf.vim", source = "~/.config/minimal/loadouts/socket-dev/fzf.vim" },
 ]
 
 [vars]
@@ -25,6 +29,8 @@ patches = [
 PROMPT_COMMAND = 'unset PROMPT_COMMAND; [ -z "${ZELLIJ:-}${TMUX:-}${STY:-}" ] && bash "$HOME/.local/bin/socket-dev-session"'
 TERM = { inherit = true, default = "xterm-256color" }
 COLORTERM = { inherit = true }
+EDITOR = "vim"
+VISUAL = "vim"
 
 # Credentials travel from the host environment, never from files. Each one is
 # dropped with a warning when it is unset on the host, so none is required to

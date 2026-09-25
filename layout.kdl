@@ -6,7 +6,7 @@
 layout {
     pane split_direction="vertical" {
         pane name="shell" size="45%" command="bash" {
-            args "-c" "bash \"$HOME/.local/bin/socket-welcome\"; exec bash -i"
+            args "-c" "bash \"$HOME/.local/bin/socket-welcome\"; exec bash --rcfile \"$HOME/.config/socket-dev/bashrc\" -i"
         }
         pane name="claude" focus=true command="bash" {
             args "-c" "exec bash \"$HOME/.local/bin/socket-claude-launch\""
