@@ -8,29 +8,117 @@
 # a session) the package.json name decides.
 set -euo pipefail
 
+# Colour depth: 24-bit where the terminal says so, 256 colours by TERM, and
+# plain characters for NO_COLOR or when the output is not a terminal.
+depth=none
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   bold=$'\e[1m' dim=$'\e[2m' cyan=$'\e[36m' yellow=$'\e[33m' reset=$'\e[0m'
-  # Socket's brand purple where the terminal has 256 colours, plain magenta
-  # otherwise.
-  case "${TERM:-}" in
-    *256color* | xterm-kitty | alacritty | wezterm) brand=$'\e[1;38;5;99m' ;;
-    *) brand=$'\e[1;35m' ;;
+  case "${COLORTERM:-}" in
+    truecolor | 24bit) depth=truecolor ;;
+    *) case "${TERM:-}" in *256color*) depth=256 ;; *) depth=16 ;; esac ;;
   esac
 else
-  bold='' dim='' cyan='' yellow='' reset='' brand=''
+  bold='' dim='' cyan='' yellow='' reset=''
 fi
 
-# Figlet "standard" wordmark. Quoted heredoc: the backslashes are literal.
+# The Socket shield (socket.dev's logo-text.svg, rendered at 14x18 px, with
+# the bolt redrawn by hand so it still reads at this size): S is the shield,
+# W the bolt, . transparent. Two pixel rows share one text row via
+# half-block characters.
+SHIELD=(
+  '......SS......'
+  '...SSSSSSSS...'
+  'SSSSSSSSSSSSSS'
+  'SSSSSSSSWSSSSS'
+  'SSSSSSSWWSSSSS'
+  'SSSSSSWWWSSSSS'
+  'SSSSSWWWWSSSSS'
+  'SSSSWWWWWWWSSS'
+  'SSSSSSSWWWSSSS'
+  'SSSSSSWWWSSSSS'
+  'SSSSSSWWSSSSSS'
+  'SSSSSWWSSSSSSS'
+  '.SSSSWSSSSSSS.'
+  '.SSSSSSSSSSSS.'
+  '..SSSSSSSSSS..'
+  '...SSSSSSSS...'
+  '....SSSSSS....'
+  '......SS......'
+)
+# The shield's left-to-right gradient (#ff00aa to #8c50ff) sampled per column,
+# as 24-bit triples and nearest xterm-256 indexes.
+GRAD_TC=('251;3;173' '243;9;179' '234;14;185' '226;20;191' '218;26;198' '209;32;204'
+  '201;37;210' '193;43;216' '185;49;222' '176;55;228' '168;61;234' '160;66;240'
+  '151;72;247' '143;78;253')
+GRAD_256=(199 199 163 163 164 164 164 128 134 134 134 135 99 99)
+
+# The escape selecting pixel class $1 in column $2 as colour layer $3
+# (38 = foreground, 48 = background).
+paint() {
+  local cls="$1" x="$2" layer="$3"
+  case "$depth" in
+    truecolor)
+      [ "$cls" = W ] && printf '\e[%s;2;247;243;239m' "$layer" ||
+        printf '\e[%s;2;%sm' "$layer" "${GRAD_TC[$x]}"
+      ;;
+    256)
+      [ "$cls" = W ] && printf '\e[%s;5;231m' "$layer" ||
+        printf '\e[%s;5;%sm' "$layer" "${GRAD_256[$x]}"
+      ;;
+    16)
+      # Bright white bolt on bright magenta; 10 more selects the background.
+      local code=95
+      [ "$cls" = W ] && code=97
+      printf '\e[%sm' "$((layer == 38 ? code : code + 10))"
+      ;;
+  esac
+}
+
+# One text row of the shield, from pixel rows $1 and $1+1.
+shield_row() {
+  local top="${SHIELD[$1]}" bot="${SHIELD[$(($1 + 1))]}" x t b
+  for ((x = 0; x < ${#top}; x++)); do
+    t="${top:x:1}" b="${bot:x:1}"
+    if [ "$depth" = none ]; then
+      # Plain: the shield is solid and the bolt is cut out of it.
+      case "$t$b" in
+        SS) printf '█' ;; S.) printf '▀' ;; .S) printf '▄' ;;
+        SW) printf '▀' ;; WS) printf '▄' ;; *) printf ' ' ;;
+      esac
+    elif [ "$t$b" = .. ]; then
+      printf ' '
+    elif [ "$t" = "$b" ]; then
+      paint "$t" "$x" 38; printf '█\e[0m'
+    elif [ "$t" = . ]; then
+      paint "$b" "$x" 38; printf '▄\e[0m'
+    elif [ "$b" = . ]; then
+      paint "$t" "$x" 38; printf '▀\e[0m'
+    else
+      paint "$t" "$x" 38; paint "$b" "$x" 48; printf '▀\e[0m'
+    fi
+  done
+}
+
+# A figlet "standard" wordmark, set beside the shield on its rows 2-6. Single
+# quotes keep the backslashes literal.
+WORD=(
+  '                 _        _'
+  '  ___  ___   ___| | _____| |_'
+  ' / __|/ _ \ / __| |/ / _ \ __|'
+  ' \__ \ (_) | (__|   <  __/ |_'
+  ' |___/\___/ \___|_|\_\___|\__|.dev'
+)
+
 logo() {
-  printf '%s' "$brand"
-  cat <<'LOGO'
-                  _        _
-   ___  ___   ___| | _____| |_
-  / __|/ _ \ / __| |/ / _ \ __|
-  \__ \ (_) | (__|   <  __/ |_
-  |___/\___/ \___|_|\_\___|\__|.dev
-LOGO
-  printf '%s' "$reset"
+  local row
+  for ((row = 0; row < ${#SHIELD[@]} / 2; row++)); do
+    printf '  '
+    shield_row $((row * 2))
+    if ((row >= 2 && row - 2 < ${#WORD[@]})); then
+      printf '  %s%s%s' "$bold" "${WORD[row - 2]}" "$reset"
+    fi
+    printf '\n'
+  done
 }
 
 detect_repo() {
