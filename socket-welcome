@@ -10,9 +10,28 @@ set -euo pipefail
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   bold=$'\e[1m' dim=$'\e[2m' cyan=$'\e[36m' yellow=$'\e[33m' reset=$'\e[0m'
+  # Socket's brand purple where the terminal has 256 colours, plain magenta
+  # otherwise.
+  case "${TERM:-}" in
+    *256color* | xterm-kitty | alacritty | wezterm) brand=$'\e[1;38;5;99m' ;;
+    *) brand=$'\e[1;35m' ;;
+  esac
 else
-  bold='' dim='' cyan='' yellow='' reset=''
+  bold='' dim='' cyan='' yellow='' reset='' brand=''
 fi
+
+# Figlet "standard" wordmark. Quoted heredoc: the backslashes are literal.
+logo() {
+  printf '%s' "$brand"
+  cat <<'LOGO'
+                  _        _
+   ___  ___   ___| | _____| |_
+  / __|/ _ \ / __| |/ / _ \ __|
+  \__ \ (_) | (__|   <  __/ |_
+  |___/\___/ \___|_|\_\___|\__|.dev
+LOGO
+  printf '%s' "$reset"
+}
 
 detect_repo() {
   if [ -n "${SOCKET_REPO:-}" ]; then
@@ -38,8 +57,10 @@ header() {
   # (see PNPM_CONFIG_PM_ON_FAIL in minimal.toml); cap it so an offline
   # session still gets its welcome.
   pnpm_v="$(timeout 60 pnpm --version 2>/dev/null || echo 'not found')"
-  printf '\n%s%s%s\n' "$bold" "$title" "$reset"
-  printf '%snode %s  pnpm %s  cwd %s%s\n\n' "$dim" "$node_v" "$pnpm_v" "$PWD" "$reset"
+  echo
+  logo
+  printf '\n  %s%s%s\n' "$bold" "$title" "$reset"
+  printf '  %snode %s  pnpm %s  cwd %s%s\n\n' "$dim" "$node_v" "$pnpm_v" "$PWD" "$reset"
   printf '  %s%-34s %s%s\n' "$bold" 'In this shell' 'Fresh sandbox (installs first)' "$reset"
 }
 
