@@ -159,7 +159,18 @@ claude mcp add --transport http socket-local-http http://localhost:3000
   not from the pinned Minimal catalog. Once the catalog carries pnpm 12.3.4 or
   later, remove the variable.
 - **Session packages.** `base`, `node-lts`, `git`, `gh`, `jq`, `less`,
-  `ripgrep`, `fd`. The loadout adds `zellij` and `claude-code`.
+  `ripgrep`, `fd` and `zizmor` in both repos, plus `uv` and `python` in
+  socket-cli. Those cover `.config/repo/external-tools.json` except `sfw` and
+  `gh-aw`, which aren't in the Minimal catalog; the fleet setup downloads
+  them itself. The lint, check and preflight tasks also get `zizmor`.
+- **Editor and shell.** The loadout adds `zellij`, `claude-code`, `vim`,
+  `fzf` and `bat`, and sets `EDITOR`/`VISUAL` to `vim`. The shell pane loads
+  `bashrc` (fzf's Ctrl-R history, Ctrl-T file and Alt-C directory pickers, fed
+  by `fd`, with `bat` previews). `vimrc` sets TypeScript-friendly defaults and
+  maps Ctrl-P / `<Space>f` to `:FZF`, `<Space>g` to `:Rg`, `<Space>w` to `:Rg`
+  on the word under the cursor, and `<Space>b` to `:Buffers`. `fzf.vim` is
+  fzf's own Vim plugin, vendored from junegunn/fzf v0.74.2 to match the
+  catalog's fzf.
 
 ## Things to know
 
@@ -201,6 +212,9 @@ claude mcp add --transport http socket-local-http http://localhost:3000
 | `loadout.toml` | Packages, patches and vars for the session |
 | `socket-dev-session` | Attach-time entry point. Seeds the zellij and Claude Code first-run config, then opens the layout. |
 | `layout.kdl` | The two-pane zellij layout |
+| `bashrc` | The shell pane's rcfile: fzf key bindings and defaults |
+| `vimrc` | Vim defaults and fzf pickers (`:FZF`, `:Rg`, `:Buffers`) |
+| `fzf.vim` | fzf's Vim plugin (MIT, junegunn/fzf v0.74.2) |
 | `socket-welcome` | Prints the command list for the current repo |
 | `socket-claude-launch` | Runs `claude update`, then starts the updated Claude Code |
 | `socket-cli.minimal.toml` | `.minimal/minimal.toml` for socket-cli |
