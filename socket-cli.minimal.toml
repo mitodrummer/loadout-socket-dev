@@ -5,7 +5,7 @@
 [upstream]
 repo = "https://github.com/gominimal/pkgs"
 branch = "main"
-locked_commit = "79d15b4a2659d7826ee9e53e9e0bdd3d0cecf643"
+locked_commit = "2d07baa1141cce5e3c35b7e3ea8b066bdf3cba44"
 
 [stack]
 use = "pnpm"
