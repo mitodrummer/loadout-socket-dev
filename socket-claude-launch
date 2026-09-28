@@ -21,6 +21,24 @@ updater="$updated"
 "$updater" update ||
   echo "socket-claude-launch: 'claude update' failed; launching what is installed." >&2
 
+# Register the Minimal skills marketplace and enable its plugin. `claude
+# plugin` records both in ~/.claude/settings.json, so a marker keeps repeat
+# launches off the network. The packaged /usr/share/claude/plugins/minimal
+# below is a different thing: it ships with the claude-code package and is
+# absent from the current image, so the marketplace copy is what lands.
+#
+# Non-fatal for the same reason as the update above: an offline or rate-limited
+# plugin step must still leave a working agent.
+plugin_marker="$HOME/.cache/socket-dev/minimal-plugin"
+if [ ! -e "$plugin_marker" ]; then
+  if "$updater" plugin marketplace add gominimal/minimal-skills &&
+    "$updater" plugin install minimal@gominimal; then
+    mkdir -p "$(dirname "$plugin_marker")" && : >"$plugin_marker"
+  else
+    echo "socket-claude-launch: Minimal skills plugin setup failed; continuing without it." >&2
+  fi
+fi
+
 if [ -x "$updated" ]; then
   # Match the package wrapper's launch environment (Minimal session plugin,
   # packaged ripgrep) so the updated binary behaves like the packaged one.
