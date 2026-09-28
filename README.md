@@ -15,7 +15,8 @@ commands.
 
 ## Install
 
-Needs min 0.6 or later.
+Needs min 0.6.0 or later, which reads a loadout from its own directory
+(`min --version` to check).
 
 ```sh
 # 1. The loadout. The directory name is the loadout's name.
@@ -29,6 +30,10 @@ cp ~/.config/minimal/loadouts/socket-dev/socket-cli.minimal.toml .minimal/minima
 # 3. Activate and attach.
 min session activate --loadout socket-dev --attach
 ```
+
+If you used this loadout on min 0.5.x through a copied
+`loadouts/socket-dev.toml`, delete that copy after upgrading, so that only one
+`socket-dev` loadout remains.
 
 To run the install at activation, allow the repo's hook in
 `~/.config/minimal/user_policy.toml`. Otherwise activation asks, and without
