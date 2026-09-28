@@ -20,7 +20,11 @@ state_key = "dev"
 # zizmor is the one entry of .config/repo/external-tools.json the base set
 # lacks; sfw and gh-aw are not in the catalog, and the fleet setup downloads
 # them itself.
-packages = ["base", "node-lts", "git", "gh", "jq", "less", "ripgrep", "fd", "zizmor"]
+# procps-ng supplies ps, which the fleet memory-pressure-guard shells out to
+# before every build, check, cover, preflight, test and type script. The guard
+# fails closed when it cannot read the process table, so without ps it blocks
+# `pnpm build` outright.
+packages = ["base", "node-lts", "git", "gh", "jq", "less", "ripgrep", "fd", "zizmor", "procps-ng"]
 
 [session.vars]
 # Read by the socket-dev loadout's welcome script to pick the command list.

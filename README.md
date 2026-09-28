@@ -74,6 +74,10 @@ in the shell against the session's `node_modules` (fast), or as
 - **Repo tools:** `zizmor` in both repos, plus `uv` and `python` in socket-cli,
   from `.config/repo/external-tools.json`. `sfw` and `gh-aw` aren't in the
   catalog; the fleet setup downloads them itself.
+- **`procps-ng`:** supplies `ps`. Socket's `memory-pressure-guard` shells out to
+  it before every `build`, `check`, `cover`, `preflight`, `test` and `type`
+  script, and fails closed when the process table is unreadable. Without it the
+  guard blocks those commands instead of running them.
 
 ## Known issues
 
@@ -99,7 +103,7 @@ in the shell against the session's `node_modules` (fast), or as
 | `socket-dev-session` | Opens the zellij layout at attach |
 | `layout.kdl` | The two-pane layout |
 | `socket-welcome` | The welcome: logo, commands and shortcuts |
-| `socket-claude-launch` | Updates Claude Code, then starts it |
+| `socket-claude-launch` | Updates Claude Code, enables the Minimal skills plugin, then starts it |
 | `bashrc` | The shell pane's fzf setup |
 | `vimrc`, `fzf.vim` | Vim settings and fzf's Vim plugin (MIT, junegunn/fzf v0.74.2) |
 | `socket-cli.minimal.toml`, `socket-mcp.minimal.toml` | Each repo's `.minimal/minimal.toml` |
